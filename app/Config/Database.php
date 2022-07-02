@@ -34,7 +34,7 @@ class Database extends Config
         'DSN'      => '',
         'hostname' => 'remotemysql.com',
         'username' => 'S1D1kQ7yB7',
-        'password' => '',
+        'password' => 'vx4AWbqcEi',
         'database' => 'S1D1kQ7yB7',
         'DBDriver' => 'MySQLi',
         'DBPrefix' => '',
