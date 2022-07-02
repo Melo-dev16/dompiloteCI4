@@ -69,7 +69,7 @@
 
   <body>
   <header>
-    <img alt="logo" src="<?=base_url('assets/');?>logo.png" width="200" height="50">
+    <img alt="logo" src="<?=base_url('public/assets/');?>/logo.png" width="200" height="50">
   </header>
   <div>
     <h1>Aucun appartement trouvé !</h1>
