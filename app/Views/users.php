@@ -233,7 +233,7 @@ use App\Libraries\Tools;
                 <input accept=".xls,.xlsx,.csv" type="file" id="usersExcel" class="form-control">
               </p>
               <p>
-                <button id="exportBtn" type="button" onclick="UploadCSV()" class="btn btn-primary btn-sm">Exporter <img alt="loading..." style="margin-bottom: 5px;display: none;" src="<?=base_url('assets/gear.gif');?>" width="20" height="20"></button>
+                <button id="exportBtn" type="button" onclick="UploadCSV()" class="btn btn-primary btn-sm">Exporter <img alt="loading..." style="margin-bottom: 5px;display: none;" src="<?=base_url('gear.gif');?>" width="20" height="20"></button>
               </p>
             </form>
           </div>
