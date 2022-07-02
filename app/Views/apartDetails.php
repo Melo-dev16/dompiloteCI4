@@ -393,7 +393,7 @@ $this->extend('templates/template');
           <div class="row">
             <div class="col-md-12">
               <p class="text-center">
-                <img src="<?=base_url('public/assets/chart.png');?>" width="80" height="80">
+                <img src="<?=base_url('assets/chart.png');?>" width="80" height="80">
               </p>
             </div>
           </div>
