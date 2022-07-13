@@ -86,6 +86,12 @@
                           </li>
                       <?php
                     }
+                    
+                    if ($_SESSION['__sess_dompilote_role'] == "Super Admin") {
+                      ?>
+                      <li><a href="<?=base_url("macs");?>"><i class="fas fa-microchip"></i> Liste des MAC</a>
+                      <?php
+                    }
 
                     foreach($userApts as $ua):
                   ?>
@@ -113,10 +119,51 @@
                     <span class=" fa fa-angle-down"></span>
                   </a>
                   <ul class="dropdown-menu dropdown-usermenu pull-right">
-                    <li><a href="javascript:;"><i class="fa fa-user"></i> Profil</a></li>
+                    <li><a href="<?=base_url("profile");?>"><i class="fa fa-user"></i> Profil</a></li>
                     <li><a href="<?=base_url("logout");?>"><i class="fa fa-sign-out pull-right"></i> Déconnexion</a></li>
                   </ul>
                 </li>
+
+                <?php
+                if($_SESSION['__sess_dompilote_role'] == "Super Admin" || $_SESSION['__sess_dompilote_role'] == "Admin"):
+                  $unknowns = $tools->getUnknownApts();
+                  if($unknowns != NULL):
+                ?>
+
+                <li role="presentation" class="dropdown">
+                  <a href="javascript:;" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-bell"></i>
+                    <span class="badge bg-red"><?=count($unknowns);?></span>
+                  </a>
+                  <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu">
+                    <?php $i = 1; foreach ($unknowns as $uk):?>
+                    <li>
+                      <a href="<?=base_url("apartments?unknown=".$uk->host);?>">
+                        <span>
+                          <span>Nouvelle MAC: <?=$uk->host;?></span>
+                        </span>
+                        <span class="message">
+                          Un appartement de MAC inconnu a été reçu. Créer un nouvel appartement pour cette MAC ou fusionner là à un appartement existant.
+                        </span>
+                      </a>
+                    </li>
+                    <?php if($i == 5){break;}$i++; endforeach;?>
+
+                    <li>
+                      <div class="text-center">
+                        <a href="<?=base_url("apartments");?>">
+                          <strong>Voir tout</strong>
+                          <i class="fa fa-angle-right"></i>
+                        </a>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+                <?php
+                  endif;
+                endif;
+                ?>
+
               </ul>
             </nav>
           </div>

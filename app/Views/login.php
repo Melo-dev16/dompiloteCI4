@@ -1,3 +1,7 @@
+<?php
+  use App\Libraries\Tools;
+  $tools = new Tools();
+?>
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -45,7 +49,7 @@
               </div>
               <div>
                 <button type="submit" id="loginBtn" class="btn btn-default submit"><span>Connexion</span> <img alt="loading..." style="margin-bottom: 5px;display: none;" src="<?=base_url();?>/radio.gif" width="20" height="20"></button>
-                <a class="reset_pass" href="#">Mot de passe oublié ?</a>
+                <a class="reset_pass" href="<?=base_url("password_forget");?>">Mot de passe oublié ?</a>
               </div>
 
               <div class="clearfix"></div>
@@ -79,5 +83,10 @@
           $(".disclaimer").hide();
         })
     </script>
+    <?php
+        if(isset($_SESSION['alert'])){
+          echo $tools->setNotif($_SESSION['alert']['title'],$_SESSION['alert']['text'],$_SESSION['alert']['type']);
+        }
+    ?>
   </body>
 </html>

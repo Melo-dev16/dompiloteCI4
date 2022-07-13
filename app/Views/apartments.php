@@ -1,12 +1,288 @@
 <?php
+use App\Libraries\Tools;
     $this->extend('templates/template');
+    $tools = new Tools();
     $adminModel = model("AdminModel");
 
     $this->section('content');
+    $unknowns = $adminModel->getUnknownApts();
+    $userApts = $adminModel->getUserApts($_SESSION['__sess_dompilote_id']);
+    $adminMacs = $adminModel->getAdminMacs($_SESSION['__sess_dompilote_id']);
 ?>
   
 <div class="row">
+  <?php
+    if($unknowns != NULL):
+  ?>  
+  <div class="col-md-6 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h2>MACs non-identifiées <span class="label label-danger" style="color: white;"><?=count($unknowns);?></span></h2>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <div class="accordion" id="accordion" role="tablist" aria-multiselectable="true">
+            <?php $i = 1; foreach ($unknowns as $uk): $ukTemps = $adminModel->getApartTemps($uk->apartementId);?>
+            <div class="panel">
+              <a class="panel-heading collapsed" role="tab" id="unknowHead<?=$uk->host;?>" data-toggle="collapse" data-parent="#accordion" href="#unknowBody<?=$i;?>" aria-expanded="false">
+                <h4 class="panel-title"><?=$uk->aptName;?></h4>
+              </a>
+              <div id="unknowBody<?=$i;?>" class="panel-collapse collapse" role="tabpanel">
+                <div class="panel-body">
+                  <p>
+                    <strong>Adresse MAC:</strong> <?=$uk->host;?>
+                  </p>
+                  <p>
+                    <strong>Données:</strong> <?=count($ukTemps);?>
+                  </p>
+                  <p>
+                    <strong>Dernier relevé:</strong> <?php foreach($ukTemps as $ukt){echo $tools->dateInFrenchFormat($ukt->datetime,true);break; } ?>
+                  </p>
+                  <p>
+                    <a href="#" data-toggle="modal" data-target=".validate-modal<?=$uk->apartementId;?>" class="btn btn-success btn-sm"><i class="fas fa-check"></i></a>
+                    <a href="#" data-toggle="modal" data-target=".merge-modal<?=$uk->apartementId;?>" class="btn btn-primary btn-sm"><i class="fas fa-atom"></i></a>
+                    <a onclick="return confirm('Êtes vous sûr de vouloir supprimer cet appartement ?');" href="<?=base_url('delete_appt/'.$uk->apartementId);?>" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></a>
+                  </p>
+                </div>
+              </div>
+            </div>
 
+            <div class="modal fade validate-modal<?=$uk->apartementId;?>" tabindex="-1" role="dialog" aria-hidden="true">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+
+                  <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true"><i class="fa fa-close"></i></span>
+                    </button>
+                    <h4 class="modal-title">Validation de <strong><?=$uk->aptName;?></strong></h4>
+                  </div>
+                  <div class="modal-body">
+                    <form method="POST" action="<?=base_url('edit_apartment/'.$uk->apartementId);?>">
+                      <input type="hidden" name="unknown" value="0">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->aptName;?>" type="text" name="aptName" class="form-control" placeholder="Nom de l'appartement">
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->adress;?>" type="text" name="aptAddr" class="form-control" placeholder="Adresse">
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->company;?>" type="text" name="aptCmp" class="form-control" placeholder="Compagnie">
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->state;?>" type="text" name="aptState" class="form-control" placeholder="Etat">
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->long;?>" type="text" name="aptLong" class="form-control" placeholder="Coordonnée Longitude">
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->lat;?>" type="text" name="aptLat" class="form-control" placeholder="Coordonnée Latitude">
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          <select name="aptType" class="form-control">
+                            <option value="">Type de l'appartement</option>
+                            <option <?=$uk->type == 'F1' ? "selected" : "";?> value="F1">F1</option>
+                            <option <?=$uk->type == 'F2' ? "selected" : "";?> value="F2">F2</option>
+                            <option <?=$uk->type == 'F3' ? "selected" : "";?> value="F3">F3</option>
+                            <option <?=$uk->type == 'F4' ? "selected" : "";?> value="F4">F4</option>
+                            <option <?=$uk->type == 'F5' ? "selected" : "";?> value="F5">F5</option>
+                            <option <?=$uk->type == 'F6' ? "selected" : "";?> value="F6">F6</option>
+                            <option <?=$uk->type == 'F7' ? "selected" : "";?> value="F7">F7</option>
+                            <option <?=$uk->type == 'F8' ? "selected" : "";?> value="F8">F8</option>
+                            <option <?=$uk->type == 'F9' ? "selected" : "";?> value="F9">F9</option>
+                            <option <?=$uk->type == 'F10' ? "selected" : "";?> value="F10">F10</option>
+                          </select>
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <p>
+                          <input readonly value="<?=$uk->host;?>" type="text" name="aptMac" class="form-control" placeholder="Adresse MAC">
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->tel1;?>" type="text" name="aptTel1" class="form-control" placeholder="Téléphone 1">
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->tel2;?>" type="text" name="aptTel2" class="form-control" placeholder="Téléphone 2">
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->nBat;?>" type="text" name="aptBat" class="form-control" placeholder="N° Batiment (Optionnel)">
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->nStair;?>" type="text" name="aptStair" class="form-control" placeholder="N° Escalier (Optionnel)">
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          <input value="<?=$uk->nFloor;?>" type="text" name="aptFloor" class="form-control" placeholder="N° Etage (Optionnel)">
+                        </p>
+                      </div>
+                      
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-6">
+                        <p>
+                          Propriétaire
+                        </p>
+                        <p>
+                          <select name="owner" class="form-control">
+                            <?php 
+                              foreach($users as $u):
+                                if($u->userRole == 'Utilisateur'):
+                            ?>
+                              <option <?=$adminModel->verifyAdminManage($u->id,$uk->apartementId) ? "selected" : "";?> value="<?=$u->id;?>"><?=$u->name;?> (<?=$u->email;?>)</option>
+                            <?php endif;endforeach;?>
+                          </select>
+                        </p>
+                      </div>
+
+                      <div class="col-md-6">
+                        <p>
+                          Technicien
+                        </p>
+                        <p>
+                          <select name="techs[]" multiple class="form-control chosen-select">
+                            <?php 
+                              foreach($users as $u):
+                                if($u->userRole == 'Technicien'):
+                            ?>
+                              <option <?=$adminModel->verifyAdminManage($u->id,$uk->apartementId) ? "selected" : "";?> value="<?=$u->id;?>"><?=$u->name;?></option>
+                            <?php endif;endforeach;?>
+                          </select>
+                        </p>
+                      </div>
+                      <?php if($_SESSION['__sess_dompilote_role'] == "Super Admin"){?>
+                      <div class="col-md-6">
+                        <p>
+                          Gestionnaire
+                        </p>
+                        <p>
+                          <select name="admins[]" multiple class="form-control chosen-select">
+                            <?php 
+                              foreach($users as $u):
+                                if($u->userRole == 'Admin'):
+                            ?>
+                              <option <?=$adminModel->verifyAdminManage($u->id,$uk->apartementId) ? "selected" : "";?> value="<?=$u->id;?>"><?=$u->name;?></option>
+                            <?php endif;endforeach;?>
+                          </select>
+                        </p>
+                      </div>
+                      <?php
+                      }
+                      else{
+                        foreach($users as $u):
+                          if($u->userRole == 'Admin'):
+                            if($adminModel->verifyAdminManage($u->id,$uk->apartementId)){
+                      ?>
+                      <input type='hidden' name='admins[]' value='<?=$u->id;?>'>
+                      <?php 
+                          }
+                        endif;
+                      endforeach;
+                       }
+                      ?>
+                    </div>
+
+                    <p class="text-center">
+                      <button type="submit" class="btn btn-success">Valider <i class="fa fa-check"></i></button>
+                    </p>
+
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal fade merge-modal<?=$uk->apartementId;?>" tabindex="-1" role="dialog" aria-hidden="true">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+
+                  <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true"><i class="fa fa-close"></i></span>
+                    </button>
+                    <h4 class="modal-title">Fusionner <strong><?=$uk->aptName;?></strong></h4>
+                  </div>
+                  <div class="modal-body">
+                    <form method="POST" action="<?=base_url('merge_apartment/'.$uk->apartementId);?>">
+
+                    <div class="row">
+                      <div class="col-md-4">
+                        <p>
+                          Fusionner à
+                        </p>
+                        <p>
+                          <select name="to" class="form-control">
+                            <?php foreach($userApts as $ua): if($uk->apartementId != $ua->apartementId && $ua->unknown == 0):?>
+                              <option value="<?=$ua->apartementId;?>"><?=$ua->aptName;?> (<?=$ua->host;?>)</option>
+                            <?php endif; endforeach;?>
+                          </select>
+                        </p>
+                      </div>
+
+                      <div class="col-md-8">
+                        <p>
+                          Type de fusion
+                        </p>
+                        <p>
+                          <select name="mergeType" class="form-control">
+                            <option value="A">Remplacer la MAC et migrer les données de la nouvelle MAC vers l'appartement cible</option>
+                            <option value="B">Remplacer uniquement la MAC</option>
+                            <option value="C">Migrer les données de la nouvelle MAC vers la cible</option>
+                          </select>
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <p class="text-center">
+                      <button type="submit" class="btn btn-success">Fusionner <i class="fa fa-atom"></i></button>
+                    </p>
+
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <?php $i++; endforeach;?>
+
+          </div>
+      </div>
+    </div>
+  </div>
+  <?php
+    endif;
+  ?>
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -105,7 +381,17 @@
                 </div>
                 <div class="col-md-6">
                   <p>
-                    <input type="text" id="aptMac" name="aptMac" class="form-control" placeholder="Adresse MAC">
+                    <select id="aptMac" name="aptMac" class="form-control">
+                      <option value="">Adresse MAC</option>
+                      <?php 
+                        foreach($adminMacs as $macs):
+                          $apt = $adminModel->getApartByMac($macs->mac);
+
+                          if(is_null($apt)):
+                      ?>
+                        <option value="<?=$macs->mac;?>"><?=$macs->mac;?></option>
+                      <?php endif;endforeach;?>
+                    </select>
                   </p>
                 </div>
 
@@ -321,7 +607,7 @@
             </tr>
           </thead>
           <tbody>
-              <?php $userApts = $adminModel->getUserApts($_SESSION['__sess_dompilote_id']); foreach($userApts as $ua):?>
+              <?php foreach($userApts as $ua):?>
                 <tr>
                   <td><a style="color: blue;" href="<?=base_url("apartments/".$ua->apartementId);?>"><?=$ua->aptName;?></a></td>
                   <td><?=$ua->adress;?></td>
@@ -356,8 +642,10 @@
                   ?>
                   </td>
                   <td>
+                    <?php if($ua->unknown == 0):?>
                     <a class="btn btn-sm btn-info" data-toggle="modal" data-target=".edit-modal<?=$ua->apartementId;?>" href="#"><i class="fa fa-pencil"></i></a>
                     <a class="btn btn-sm btn-danger" onclick="return confirm('Êtes vous sûr de vouloir supprimer cet appartement ?');" href="<?=base_url('delete_appt/'.$ua->apartementId);?>"><i class="fa fa-trash"></i></a>
+                    <?php else: echo "-"; endif;?>
                   </td>
                 </tr>
 
@@ -426,7 +714,17 @@
                             </div>
                             <div class="col-md-6">
                               <p>
-                                <input value="<?=$ua->host;?>" type="text" name="aptMac" class="form-control" placeholder="Adresse MAC">
+                                <select name="aptMac" required class="form-control">
+                                  <option value="">Adresse MAC</option>
+                                  <?php 
+                                    foreach($adminMacs as $macs):
+                                      $apt = $adminModel->getApartByMac($macs->mac);
+
+                                      if(is_null($apt) || $apt->host == $ua->host):
+                                  ?>
+                                    <option <?=$ua->host == $macs->mac ? "selected":"";?> value="<?=$macs->mac;?>"><?=$macs->mac;?></option>
+                                  <?php endif;endforeach;?>
+                                </select>
                               </p>
                             </div>
 
@@ -542,5 +840,17 @@
 </div>
 
 <?php
+    if(isset($_GET['unknown'])){
+      ?>
+      <script type="text/javascript">
+        let callback = function() {
+          document.getElementById("unknowHead<?=$_GET['unknown'];?>").click();
+          window.location.href = "#unknowHead<?=$_GET['unknown'];?>";
+          console.log("<?=$_GET['unknown'];?>");
+        };
+        document.addEventListener("DOMContentLoaded", callback);
+      </script>
+      <?php
+    }
     $this->endSection();
 ?>

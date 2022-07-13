@@ -17,6 +17,8 @@ class AdminModel extends Model
         $this->apptBuilder = $this->db->table('apartment');
         $this->mngBuilder = $this->db->table('manage');
         $this->tempBuilder = $this->db->table('temperature');
+        $this->prBuilder = $this->db->table('password_recovery');
+        $this->macBuilder = $this->db->table('macs');
 
         parent::__construct();
     }
@@ -102,11 +104,63 @@ class AdminModel extends Model
         return $q;
     }
 
+    public function checkUserPassword($email,$pwd){
+        $today = date("Y-m-d H:i:s");
+
+        $q = $this->userBuilder->select("user.id as id,email,user.name as name, password,role.name as userRole")
+        ->join("role","user.roleId = role.id")->where("email",$email)
+        ->where("deletedAt",NULL)
+        ->where("disableAt >",$today);
+
+        if ($q->countAllResults(false) == 1){
+            $userFound = $q->get()->getRow();
+            if (password_verify($pwd,$userFound->password)){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        else{
+            return false;
+        }        
+    }
+
     public function getUserInfos($userID){
         $q = $this->userBuilder->select("user.id as id,email,user.name as name,role.name as userRole,disableAt,deletedAt")
         ->join("role","user.roleId = role.id")->where('deletedAt',NULL)->where('user.id',$userID)->get()->getRow();
 
         return $q;
+    }
+
+    public function getUserInfosByEmail($email){
+        $q = $this->userBuilder->select("user.id as id,email,user.name as name,role.name as userRole,disableAt,deletedAt")
+        ->join("role","user.roleId = role.id")->where('deletedAt',NULL)->where('user.email',$email)->get()->getRow();
+
+        return $q;
+    }
+
+    public function newPasswordRecovery($email,$code){
+        $disable = date("Y-m-d H:i:s",strtotime(date("Y-m-d H:i:s")." +5 minutes"));
+        $data = [
+            "code" => $code,
+            "email" => $email,
+            "disableAt" => $disable
+        ];
+        $this->prBuilder->insert($data);
+    }
+
+    public function checkPasswordRecovery($mail,$code){
+        $q = $this->prBuilder->select("*")->where('email',$mail)->where('code',$code)->get()->getRow();
+
+        return $q;
+    }
+
+    public function resetPassword($mail,$pwd){
+        $data = [
+            "password" => password_hash($pwd, PASSWORD_DEFAULT),
+        ];
+        $this->userBuilder->where('email',$mail)->update($data);
     }
 
     public function getUserApts($userID){
@@ -122,6 +176,18 @@ class AdminModel extends Model
         }
 
         return $q;
+    }
+
+    public function getUnknownApts(){
+        if($_SESSION['__sess_dompilote_role'] == "Admin"){
+            $q = $this->apptBuilder->select("*,id as apartementId,apartment.deletedAt as deletedAt")
+            ->join("macs","apartment.host = macs.mac")->where('apartment.deletedAt',NULL)->where('adminId',$_SESSION['__sess_dompilote_id'])->where('unknown',1)->get()->getResult();
+        }
+        else{
+            $q = $this->apptBuilder->select("*,id as apartementId")->where('deletedAt',NULL)->where('unknown',1)->get()->getResult();
+        }
+        return $q;
+
     }
 
     public function getApartUsers($aptID){
@@ -162,13 +228,24 @@ class AdminModel extends Model
         $this->apptBuilder->where('id',$apptID)->update($data);
     }
 
+    public function undeleteAppt($apptID){
+        
+        $data = [
+            "deletedAt" => NULL,
+        ];
+        $this->apptBuilder->where('id',$apptID)->update($data);
+    }
+
     public function editUser($userID,$name,$email,$role,$disable){
         $data = [
             "name" => $name,
-            "email" => $email,
-            "roleId" => $role,
-            "disableAt" => $disable
+            "email" => $email
         ];
+
+        if($role != '' && $disable != ''){
+            $data["roleId"] = $role;
+            $data["disableAt"] = $disable;
+        }
 
         $this->userBuilder->where('id',$userID)->update($data);
     }
@@ -181,7 +258,7 @@ class AdminModel extends Model
         $this->userBuilder->where('id',$userID)->update($data);
     }
 
-    public function addApartment($aptName,$aptAddr,$aptCmp,$aptState,$aptLong,$aptLat,$aptType,$aptMac,$aptTel1,$aptTel2,$aptBat,$aptStair,$aptFloor,$owner,$techs,$admins){
+    public function addApartment($aptName,$aptAddr,$aptCmp,$aptState,$aptLong,$aptLat,$aptType,$aptMac,$aptTel1,$aptTel2,$aptBat,$aptStair,$aptFloor,$owner,$techs,$admins,$unknown = 0){
 
         $data = [
             "aptName" => $aptName,
@@ -196,7 +273,8 @@ class AdminModel extends Model
             "type" => $aptType,
             "nBat" => $aptBat,
             "nStair" => $aptStair,
-            "nFloor" => $aptFloor
+            "nFloor" => $aptFloor,
+            "unknown" => $unknown
         ];
 
         $this->apptBuilder->insert($data);
@@ -215,7 +293,31 @@ class AdminModel extends Model
         foreach ($admins as $a) {
             $this->mngBuilder->insert(['apartementId'=>$aptID,'userId'=>$a]);
         }
+
+        $macAdmin = $this->getAdminMac($aptMac);
+
+        if(!$this->verifyAdminManage($macAdmin,$aptID)){
+            $this->mngBuilder->insert(['apartementId'=>$aptID,'userId'=>$macAdmin]);
+        }
+
         
+    }
+
+    public function MergeAppt($from,$to,$type){
+        if ($type == "A") {
+            $this->tempBuilder->where('apartementId',$from)->update(["apartementId"=>$to]);
+            $data = ["host" => $this->getApartementDetails($from,'host')];
+            $this->apptBuilder->where('id',$to)->update($data);
+        }
+        elseif ($type == "B") {
+            $data = ["host" => $this->getApartementDetails($from,'host')];
+            $this->apptBuilder->where('id',$to)->update($data);
+        }
+        elseif ($type == "C") {
+            $this->tempBuilder->where('apartementId',$from)->update(["apartementId"=>$to]);
+        }
+
+        $this->deleteAppt($from);
     }
 
     public function editApartment($aptID,$aptName,$aptAddr,$aptCmp,$aptState,$aptLong,$aptLat,$aptType,$aptMac,$aptTel1,$aptTel2,$aptBat,$aptStair,$aptFloor,$owner,$techs,$admins){
@@ -236,6 +338,10 @@ class AdminModel extends Model
             "nFloor" => $aptFloor
         ];
 
+        if (isset($_POST['unknown'])) {
+            $data["unknown"] = $_POST['unknown'];
+        }
+
         
         $this->apptBuilder->where('id',$aptID)->update($data);
 
@@ -255,6 +361,12 @@ class AdminModel extends Model
         foreach ($admins as $a) {
             $this->mngBuilder->insert(['apartementId'=>$aptID,'userId'=>$a]);
         }
+
+        $macAdmin = $this->getAdminMac($aptMac);
+
+        if(!$this->verifyAdminManage($macAdmin,$aptID)){
+            $this->mngBuilder->insert(['apartementId'=>$aptID,'userId'=>$macAdmin]);
+        }
         
     }
 
@@ -271,11 +383,25 @@ class AdminModel extends Model
         }
     }
 
-    public function getApartementDetails($aptID){
-        $q = $this->apptBuilder->select("*")
-        ->where('id',$aptID)
-        ->where('deletedAt',NULL)
-        ->get()->getResult();
+    public function getApartementDetails($aptID, $info = '*'){
+
+        if($info == '*'){
+            $q = $this->apptBuilder->select("*")
+            ->where('id',$aptID)
+            ->where('deletedAt',NULL)
+            ->get()->getResult();
+        }
+        else{
+            $q = $this->apptBuilder->select("*")->where('id',$aptID)
+            ->where('deletedAt',NULL)->get()->getRow();
+
+            if(isset($q->$info)){
+                $q = $q->$info;
+            }
+            else{
+                $q = "";
+            }
+        }
 
         return $q;
     }
@@ -388,14 +514,30 @@ class AdminModel extends Model
         return $q;
     }
 
+    public function isMACunique($mac){
+        $q = $this->macBuilder->select("*")->where("mac",$mac)->get()->getRow();
+
+        return is_null($q) ? true : false;
+    }
+
+    public function getApartTemps($aptID){
+        $q = $this->tempBuilder->select("*")
+        ->where('apartementId',$aptID)->orderBy("datetime","DESC")->get()->getResult();
+
+        return $q;
+    }
+
     public function addTemperatures($temp){
         $datas = $temp['DATA'];
         $ctrl = $temp['controller'][0];
 
         $apt = $this->getApartByMac($ctrl['host'],"id");
 
+        //echo "Host: ".$ctrl['host']." - ID: $apt";exit(0);
         if($apt == 0){
-            return $ctrl['host'];
+            $this->AddMac(NULL,$ctrl['host']);
+            $this->addApartment("Appt ".$ctrl['host'],"","","","","","",$ctrl['host'],"","","","","","",[],[],1);
+            $this->addTemperatures($temp);
         }
         else{
             foreach ($datas as $d) {
@@ -421,8 +563,6 @@ class AdminModel extends Model
                 
                 $this->tempBuilder->insert($myData);
             }
-
-            return 0;
         }
     }
 
@@ -440,5 +580,71 @@ class AdminModel extends Model
         }
         
         $this->tempBuilder->where("id",$tempID)->update($data);
+    }
+
+    public function AddMac($admin,$mac){
+        $data = [
+            "adminId" => $admin,
+            "mac" => $mac
+        ];
+        $this->macBuilder->insert($data);
+    }
+
+    public function getAdminMac($mac){
+        $q = $this->macBuilder->select("*")->where("mac",$mac)->get()->getRow()->adminId;
+
+        return $q;
+    }
+
+    public function getMacs(){
+        $q = $this->macBuilder->select("*,macs.deletedAt as deletedAt")
+        ->join("user","user.id = macs.adminId","left")->get()->getResult();
+
+        return $q;
+    }
+
+    public function undeleteMac($mac){
+        $data = [
+            "deletedAt" => NULL,
+        ];
+        $this->macBuilder->where('mac',$mac)->update($data);
+    }
+
+    public function deleteMac($mac){
+        $today = date("Y-m-d H:i:s");
+        
+        $data = [
+            "deletedAt" => $today,
+        ];
+        $this->macBuilder->where('mac',$mac)->update($data);
+    }
+
+    public function editMac($mac,$editMac,$admin){
+        $data = [
+            "adminId" => $admin,
+            "mac" => $editMac
+        ];
+        $this->macBuilder->where("mac",$mac)->update($data);
+
+        $apt = $this->getApartByMac($mac);
+
+        if(!is_null($apt)){
+            if(!$this->verifyAdminManage($admin,$apt->id)){
+                $this->mngBuilder->insert(['apartementId'=>$apt->id,'userId'=>$admin]);
+            }   
+        }
+    }
+
+    public function getAdminMacs($adminID){
+        $user = $this->getUserInfos($adminID);
+
+        if($user->userRole == "Super Admin"){
+            $q = $this->macBuilder->select("*")->where("deletedAt",NULL)->get()->getResult();
+        }
+        else {
+            $q = $this->macBuilder->select("*")->where("adminId",$adminID)->where("deletedAt",NULL)->get()->getResult();
+        }
+
+        return $q;
     }
 }

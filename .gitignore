@@ -101,7 +101,6 @@ _modules/*
 
 # Netbeans
 nbproject/
-build/
 nbbuild/
 dist/
 nbdist/

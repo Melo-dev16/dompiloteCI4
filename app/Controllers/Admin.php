@@ -7,6 +7,7 @@ class Admin extends BaseController
     public function index()
     {
         if (isset($_SESSION["__sess_dompilote_id"])){
+            //echo "Il est co";exit(0);
             $apts = $this->admin->getUserApts($_SESSION["__sess_dompilote_id"]);
             
             if (count($apts) > 0) 
@@ -21,8 +22,94 @@ class Admin extends BaseController
             }
         }
         else{
+            //echo "Il est pas co";exit(0);
             $this->admin->AutoLogin();
             return view('login');
+        }
+    }
+
+    public function showPasswordForget(){
+        return view('password_forget');
+    }
+
+    public function PasswordRecovery(){
+        $mail = $this->request->getVar("email");
+
+        if($this->admin->getUserInfosByEmail($mail) != NULL){
+            if($this->request->getVar("code") != null){
+                return view('confirm_pr_mail',["email"=>$mail]);
+            }
+            else{
+                $ok = false;
+                $code = rand(10000,99999);
+                
+                while (!$ok) {
+                    if($this->admin->checkPasswordRecovery($mail,$code) != NULL){
+                        $code = rand(10000,99999);        
+                    }
+                    else{
+                        $ok = true;
+                    }
+                }
+                $html = view('password_recovery',['code'=>$code,'email'=>$mail]);
+                $this->admin->newPasswordRecovery($mail,$code);
+                $email = \Config\Services::email();
+                $email->setFrom('cedric.datcha@growthcontinue.com', 'DOMPilote');
+                $email->setTo("melcedricdatcha@gmail.com");
+                $email->setSubject('Récupération de mot de passe');
+                $email->setMessage($html);//your message here
+              
+               if ($email->send()) {
+                $this->session->setFlashdata('alert',['title'=>'Email Envoyé !','text'=>"Email de confirmation envoyé à <strong>$mail</strong>",'type'=>'success']);
+                    return view('confirm_pr_mail',["email"=>$mail]);
+                } else {
+                    $data = $email->printDebugger(['headers']);
+                    print_r($data);
+                }
+            }
+        }
+        else{
+            $this->session->setFlashdata('alert',['title'=>'Email Envoyé !','text'=>"Aucun compte trouvé pour <strong>$mail</strong>",'type'=>'error']);
+            return redirect()->to(base_url('password_forget'));
+        }
+        
+    }
+
+    public function ConfirmPasswordRecovery(){
+        $mail = $this->request->getVar("email");
+        $code = $this->request->getVar("code");
+
+        $pr = $this->admin->checkPasswordRecovery($mail,$code);
+        if($pr != NULL){
+            if(date("Y-m-d H:i:s") <= $pr->disableAt){
+                $this->session->setFlashdata('alert',['title'=>'Code Confirmé !','text'=>"Récupération de mot de passe confirmée !",'type'=>'success']);
+                    return view('change_password',["email"=>$mail]);
+            }
+            else{
+                $this->session->setFlashdata('alert',['title'=>'Email Envoyé !','text'=>"Code expiré ou invalide !",'type'=>'error']);
+                return redirect()->to(base_url('password_recovery?email='.$mail.'&code='.$code));
+            }
+        }
+        else{
+            $this->session->setFlashdata('alert',['title'=>'Email Envoyé !','text'=>"Code expiré ou invalide !",'type'=>'error']);
+            return redirect()->to(base_url('password_recovery?email='.$mail.'&code='.$code));
+        }
+    }
+
+    public function ResetPassword(){
+        $mail = $this->request->getPost("email");
+        $pwd = $this->request->getPost("pwd");
+        $confirm = $this->request->getPost("confirm");
+
+        if($pwd != $confirm) {
+            $this->session->setFlashdata('alert',['title'=>'Mot de passe invalide','text'=>"Mot de passe non confirmé !",'type'=>'error']);
+            return view('change_password',["email"=>$mail]);
+        }
+        else{
+            $this->admin->resetPassword($mail,$pwd);
+            $this->session->setFlashdata('alert',['title'=>'Mot de passe mis à jour !','text'=>"Récupération de mot de passe éffectuée !",'type'=>'success']);
+
+            return redirect()->to(base_url());
         }
     }
     
@@ -50,9 +137,49 @@ class Admin extends BaseController
         unset($_SESSION["__sess_dompilote_id"]);
         unset($_SESSION["__sess_dompilote_role"]);
         
-        delete_cookie('__dompilote_token');
-        delete_cookie('__dompilote_email');
+        setcookie ("__dompilote_token", "", time() - 3600);
+        setcookie ("__dompilote_email", "", time() - 3600);
+        
         return redirect()->to(base_url());
+    }
+
+    public function UserProfile(){
+        return view('profile');
+    }
+
+    public function UserEditPassword(){
+        $old = $this->request->getPost('old');
+        $pwd = $this->request->getPost('pwd');
+        $confirm = $this->request->getPost('confirm');
+
+        if(!$this->admin->checkUserPassword($_SESSION["__sess_dompilote_email"],$old)){
+            $this->session->setFlashdata('alert',['title'=>'Erreur d\'authentification','text'=>"Ancien mot de passe invalide",'type'=>'error']);
+            return redirect()->to(base_url('profile'));
+        }    
+
+        if ($pwd != $confirm) {
+            $this->session->setFlashdata('alert',['title'=>'Erreur de confirmation','text'=>"Mot de passe non confirmé",'type'=>'error']);
+        }
+        else{
+            $this->admin->updatePassword($_SESSION["__sess_dompilote_id"],password_hash($pwd, PASSWORD_DEFAULT));
+
+            $this->session->setFlashdata('alert',['title'=>'Action éffectuée !','text'=>"Mot de passe modifié avec succès",'type'=>'success']);
+        }
+        
+        return redirect()->to(base_url('profile')); 
+    }
+
+    public function UserEditInfos(){
+        $name = $this->request->getPost('name');
+        $email = $this->request->getPost('email');
+
+        $this->admin->editUser($_SESSION["__sess_dompilote_id"],$name,$email,'','');
+        $this->session->setFlashdata('alert',['title'=>'Action éffectuée !','text'=>"Vos informations ont été modifié avec succès",'type'=>'success']);
+
+        $_SESSION["__sess_dompilote_name"] = $name;
+        $_SESSION["__sess_dompilote_email"] = $email;
+
+        return redirect()->to(base_url('profile'));
     }
 
     public function importUsers(){
@@ -202,6 +329,20 @@ class Admin extends BaseController
         return redirect()->to(base_url('apartments'));
     }
 
+    public function MergeAppt(){
+        $this->tools->verify_admin_logged();
+        $this->tools->verify_admin_role(['Super Admin','Admin']);
+
+        $from = $this->request->uri->getSegment(2);
+        $to = $this->request->getPost('to');
+        $type = $this->request->getPost('mergeType');
+
+        $this->admin->MergeAppt($from,$to,$type);
+
+        $this->session->setFlashdata('alert',['title'=>'Appartement fusionné !','text'=>"Les deux appartements ont bien fusionnés",'type'=>'success']);
+        return redirect()->to(base_url('apartments'));
+    }
+
     public function editAppt(){
         $this->tools->verify_admin_logged();
         $this->tools->verify_admin_role(['Super Admin','Admin']);
@@ -221,10 +362,9 @@ class Admin extends BaseController
         $aptStair = $this->request->getPost('aptStair');
         $aptFloor = $this->request->getPost('aptFloor');
         $owner = $this->request->getPost('owner');
-        $techs = $this->request->getPost('techs');
-        $admins = $this->request->getPost('admins');
+        $techs = $this->request->getPost('techs') != null ? $this->request->getPost('techs') : [] ;
+        $admins = $this->request->getPost('admins') != null ? $this->request->getPost('admins') : [] ;
 
-        
         $this->admin->editApartment($aptID,$aptName,$aptAddr,$aptCmp,$aptState,$aptLong,$aptLat,$aptType,$aptMac,$aptTel1,$aptTel2,$aptBat,$aptStair,$aptFloor,$owner,$techs,$admins);
 
         $this->session->setFlashdata('alert',['title'=>'Appartement Modifié !','text'=>"<strong>$aptName</strong> a bien été modifié.",'type'=>'success']);
@@ -356,7 +496,8 @@ class Admin extends BaseController
         if(isset($_REQUEST['json'])){
             $temp = json_decode($_REQUEST['json'],true);
             
-            return $this->response->setJSON(['response'=>$this->admin->addTemperatures($temp)]);
+            $this->admin->addTemperatures($temp);
+            return $this->response->setJSON(['response'=>0]);
         }
         else{
             return $this->response->setJSON(['response'=>-1]);
@@ -374,5 +515,95 @@ class Admin extends BaseController
 
         $this->session->setFlashdata('alert',['title'=>'Consigne Modifié !','text'=>"La consigne a bien été modifié.",'type'=>'success']);
         return redirect()->to(base_url('apartments/'.$aptID));
+    }
+
+    public function ShowMacs(){
+        $data['users'] = $this->admin->getAllUsers();
+        $data['macs'] = $this->admin->getMacs();
+        return view('macs',$data);
+    }
+
+    public function AddMac(){
+        $admin = $_POST['admin'];
+        $mac = $_POST['mac'];
+
+        if ($this->admin->isMACunique($mac)) {
+            $this->session->setFlashdata('alert',['title'=>'MAC Ajouté !','text'=>"Une nouvelle MAC a été ajouté !",'type'=>'success']);
+            $this->admin->AddMac($admin,$mac);
+        } else {
+            $this->session->setFlashdata('alert',['title'=>'MAC existante !','text'=>"La MAC $mac existe déjà !",'type'=>'error']);
+        }
+        
+        return redirect()->to(base_url('macs'));        
+    }
+
+    public function deleteMac(){
+        $this->tools->verify_admin_logged();
+        $this->tools->verify_admin_role(['Super Admin','Admin']);
+
+        $mac = $this->request->getVar("mac");
+
+        if ($this->admin->isMACunique($mac)) {
+            $this->session->setFlashdata('alert',['title'=>'MAC non trouvé !','text'=>"La MAC $mac n'existe pas !",'type'=>'error']);
+        } else {
+            $this->admin->deleteMac($mac);
+
+            $apt = $this->admin->getApartByMac($mac);
+
+            if(!is_null($apt)){
+                $this->admin->deleteAppt($apt->id);
+            }
+
+            $this->session->setFlashdata('alert',['title'=>'MAC supprimé !','text'=>"La MAC $mac a été supprimée ! Vous pouvez la restaurer avec le bouton <i class='fa fa-refresh'></i>",'type'=>'success']);
+        }
+
+        return redirect()->to(base_url('macs'));
+    }
+
+    public function undeleteMac(){
+        $this->tools->verify_admin_logged();
+        $this->tools->verify_admin_role(['Super Admin','Admin']);
+
+        $mac = $this->request->getVar("mac");
+
+        if ($this->admin->isMACunique($mac)) {
+            $this->session->setFlashdata('alert',['title'=>'MAC non trouvé !','text'=>"La MAC $mac n'existe pas !",'type'=>'error']);
+        } else {
+            $this->admin->undeleteMac($mac);
+
+            $apt = $this->admin->getApartByMac($mac);
+
+            if(!is_null($apt)){
+                $this->admin->undeleteAppt($apt->id);
+            }
+
+            $this->session->setFlashdata('alert',['title'=>'MAC restauré !','text'=>"La MAC $mac a été restauré ainsi que l'appartement lui étant lié.",'type'=>'success']);
+        }
+
+        return redirect()->to(base_url('macs'));
+    }
+
+    public function editMac(){
+        $this->tools->verify_admin_logged();
+        $this->tools->verify_admin_role(['Super Admin','Admin']);
+
+        $mac = $this->request->getVar("mac");
+        $editMac = $this->request->getVar("newMac");
+        $admin = $this->request->getVar("admin");
+
+        if ($this->admin->isMACunique($mac)) {
+            $this->session->setFlashdata('alert',['title'=>'MAC non trouvé !','text'=>"La MAC $mac n'existe pas !",'type'=>'error']);
+        } else {
+            if (!$this->admin->isMACunique($editMac) && $editMac != $mac) {
+                $this->session->setFlashdata('alert',['title'=>'MAC existante !','text'=>"La MAC $editMac existe déjà !",'type'=>'error']);
+            }
+            else{
+                $this->admin->editMac($mac,$editMac,$admin);
+
+                $this->session->setFlashdata('alert',['title'=>'MAC modifié !','text'=>"La MAC a été modifiée !",'type'=>'success']);
+            }
+        }
+
+        return redirect()->to(base_url('macs'));
     }
 }

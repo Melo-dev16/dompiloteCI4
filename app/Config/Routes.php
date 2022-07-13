@@ -47,6 +47,7 @@ $route['add_user'] = 'Admin::addUser';
 $route['delete_user/(:num)'] = 'Admin::deleteUser';
 $route['edit_user/(:num)'] = 'Admin::editUser';
 $route['update_password/(:num)'] = 'Admin::passwordUpdate';
+$route['profile'] = 'Admin::UserProfile';
 
 $route['apartments'] = 'Admin::Apartments';
 $route['/apartments/(:num)'] = 'Admin::apartmentDetails';
@@ -54,6 +55,20 @@ $route['add_apartment'] = 'Admin::addApartment';
 $route['apartments/(:num)/rooms'] = 'Admin::roomDetails';
 $route['delete_appt/(:num)'] = 'Admin::deleteAppt';
 $route['edit_apartment/(:num)'] = 'Admin::editAppt';
+$route['merge_apartment/(:num)'] = 'Admin::MergeAppt';
+
+$route['password_forget'] = 'Admin::showPasswordForget';
+$route['password_recovery'] = 'Admin::PasswordRecovery';
+$route['confirm_pwd_recovery'] = 'Admin::ConfirmPasswordRecovery';
+$route['reset_password'] = 'Admin::ResetPassword';
+$route['user_edit_password'] = 'Admin::UserEditPassword';
+$route['user_edit_infos'] = 'Admin::UserEditInfos';
+
+$route['macs'] = 'Admin::ShowMacs';
+$route['add_mac'] = 'Admin::AddMac';
+$route['delete_mac'] = 'Admin::deleteMac';
+$route['undelete_mac'] = 'Admin::undeleteMac';
+$route['edit_mac'] = 'Admin::editMac';
 
 $routes->get('/', 'Admin::index');
 $routes->map($route);

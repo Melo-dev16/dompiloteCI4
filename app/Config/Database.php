@@ -32,10 +32,14 @@ class Database extends Config
      */
     public $default = [
         'DSN'      => '',
-        'hostname' => 'remotemysql.com',
+        /*'hostname' => 'remotemysql.com',
         'username' => 'S1D1kQ7yB7',
         'password' => 'vx4AWbqcEi',
-        'database' => 'S1D1kQ7yB7',
+        'database' => 'S1D1kQ7yB7',*/
+        'hostname' => 'localhost',
+        'username' => 'root',
+        'password' => '',
+        'database' => 'dompilote',
         'DBDriver' => 'MySQLi',
         'DBPrefix' => '',
         'pConnect' => false,

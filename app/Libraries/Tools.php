@@ -79,5 +79,9 @@ class Tools {
         $color['rgba'] = "rgba($r,$g,$b,0.5)";
         return $color;
     }
+
+    public function getUnknownApts(){
+        return $this->admin->getUnknownApts();
+    }
     
 }
